@@ -24,9 +24,9 @@ ZONE_COLORS = {
 }
 
 # Maximum alpha (opacity) and linewidth for rectangle edges
-ALPHA_MAX = 0.3
-LW_MAX = 1.0
-LW_MIN = 0.0001  # Minimum linewidth for very frequent zones
+ALPHA_MAX = 0.3 #
+LW_MAX = .3 # 1
+LW_MIN = 0.0001  # 0.001
 
 # Exponential decay coefficient: controls how alpha & linewidth decrease with frequency
 EXP_COEFF = 2.0
