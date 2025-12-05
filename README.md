@@ -31,6 +31,17 @@ To compute the relative percentage between two concurrent forms
 python tokens_count.py
 ```
 
+To compute the average number of abbreviations
+
+```bash
+python count_abbr.py
+```
+
+To compute the lexical richness
+
+```bash
+python lexical_richeness.py
+```
 
 ## Cite
 
