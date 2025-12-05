@@ -58,9 +58,5 @@ output: `pages_type_overlay/`
   NOTE = {working paper or preprint},
   YEAR = {2025},
   MONTH = Oct,
-  KEYWORDS = {Automatic Text Recognition ; Medieval manuscripts ; Latin ; French ; Digital humanities ; Corpus},
-  PDF = {https://inria.hal.science/hal-05299220v1/file/Latin_and_Old_French_Manuscripts-8.pdf},
-  HAL_ID = {hal-05299220},
-  HAL_VERSION = {v1},
 }
 ```
