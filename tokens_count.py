@@ -12,7 +12,7 @@ import unicodedata
 # CONFIGURATION
 # ---------------------------
 BASE_DIR = "batch"  # Root folder containing JSON files
-FIGURE_OUTPUT = "graph_percentages.png"  # Output file for the figure
+FIGURE_OUTPUT = "graph_tokens_count.png"  # Output file for the figure
 POLY_DEGREE = 3  # Degree of the polynomial for smoothing
 LANG_FILTER = "fre"  # Only process files with doc["langue"] == LANG_FILTER
 DESIRED_CENTURIES = [13, 14, 15, 16]  # Centuries of interest
