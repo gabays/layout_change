@@ -13,7 +13,8 @@ BASE_DIR = "batch"  # Root folder containing subfolders with JSON files
 CSV_OUTPUT = "data.csv"
 FIGURE_OUTPUT = "graph.png"
 POLY_DEGREE = 6  # Degree of polynomial for smoothing
-SAVE_CSV = False   # Set to False to skip saving CSV
+SAVE_CSV = False  # Set to False to skip saving CSV
+LANG_FILTER = None #"fre" "lat"  # 🔹 Language filter: set to None to include all documents
 
 # ---------------------------
 # FUNCTION DEFINITIONS
@@ -59,7 +60,7 @@ def tokenize(text):
         return []
     return re.findall(r"\w+", text)
 
-def process_json_file(filepath):
+def process_json_file(filepath, lang_filter=LANG_FILTER):
     """
     Reads a single JSON file and computes:
     - Average number of MainZone per file_entry
@@ -67,17 +68,22 @@ def process_json_file(filepath):
     - Average number of zones per file_entry
     - Average number of tokens per file_entry (from content of lines)
     
-    If wh[0] > wh[1], all counts and tokens are halved.
-    
+    Applies language filter if lang_filter is not None:
+    - If doc["langue"] != lang_filter, returns None
+
     Returns:
         (century, avg_main, avg_margin, avg_graphic, avg_total, avg_tokens) 
-        or None if start_year is invalid.
+        or None if start_year is invalid or filtered out by language.
     """
     try:
         with open(filepath, "r", encoding="utf-8") as f:
             doc = json.load(f)
     except Exception as e:
         print(f"Error reading {filepath}: {e}")
+        return None
+
+    # 🔹 Language filter
+    if lang_filter is not None and doc.get("langue") != lang_filter:
         return None
 
     # Convert start_year to century
@@ -97,7 +103,7 @@ def process_json_file(filepath):
         drop_count = sum(1 for z in zones if z.get("type") == "DropCapitalZone")
         any_count = len(zones)
 
-        # 🔹 New calculation: token count
+        # Token count
         token_count = 0
         for z in zones:
             for line in z.get("lines", []):
@@ -115,7 +121,6 @@ def process_json_file(filepath):
             token_count *= 0.5
 
         # Aggregate counts per file_entry.
-        # We only take into consideration pages with a MainZone (exclude empty pages, title pages…)
         if main_count > 0:
             files_with_main += 1
             total_main += main_count
@@ -127,8 +132,7 @@ def process_json_file(filepath):
             total_graphic += graphic_count
         if main_count > 0:
             files_with_any += 1
-            total = main_count + margin_count + graphic_count + drop_count
-            total_any += total
+            total_any += main_count + margin_count + graphic_count + drop_count
         if main_count > 0:
             files_with_tokens += 1
             total_tokens += token_count
@@ -142,9 +146,7 @@ def process_json_file(filepath):
     return (century, avg_main, avg_margin, avg_graphic, avg_total, avg_tokens)
 
 def polynomial_smooth(x, y, degree=POLY_DEGREE):
-    """
-    Fit a polynomial of given degree to (x, y) data and return smoothed values.
-    """
+    """Fit a polynomial of given degree to (x, y) data and return smoothed values."""
     poly = np.poly1d(np.polyfit(x, y, deg=degree))
     return poly(x)
 
@@ -164,7 +166,7 @@ data_total = []
 data_tokens = []
 
 for filepath in tqdm(all_json_files, desc="Processing JSON files"):
-    result = process_json_file(filepath)
+    result = process_json_file(filepath, lang_filter=LANG_FILTER)
     if result:
         century, avg_main, avg_margin, avg_graphic, avg_total, avg_tokens = result
         if avg_main is not None: data_main.append((century, avg_main))
@@ -199,31 +201,34 @@ y_total_smooth = polynomial_smooth(df_total["century"].values, df_total["avg_tot
 y_tokens_smooth = polynomial_smooth(df_tokens["century"].values, df_tokens["avg_tokens"].values)
 
 # Step 6: Plot with dual y-axes
-fig, ax1 = plt.subplots(figsize=(3.25, 3.3))  # small format to fit two-columns layout
+fig, ax1 = plt.subplots(figsize=(3.25, 2.5))  # small format to fit two-columns layout
 
 # Left y-axis: zones
-ax1.set_xlabel("Century")
-ax1.set_ylabel("Zones/page (avg)")
-ax1.plot(df_main["century"], y_main_smooth, color="red", linewidth=2, label="MainZone")
-ax1.plot(df_margin["century"], y_margin_smooth, color="orange", linewidth=2, label="MarginTextZone")
-ax1.plot(df_graphic["century"], y_graphic_smooth, color="pink", linewidth=2, label="GraphicZone")
-ax1.plot(df_total["century"], y_total_smooth, color="brown", linewidth=2, label="TotalZones")
+ax1.set_xlabel("Century", fontsize=5)
+ax1.set_ylabel("Zones/page (avg)", fontsize=5)
+ax1.tick_params(axis="x", labelsize=5)
+ax1.tick_params(axis="y", labelsize=5)
+ax1.plot(df_main["century"], y_main_smooth, color="red", linewidth=1, label="MainZone")
+ax1.plot(df_margin["century"], y_margin_smooth, color="orange", linewidth=1, label="MarginTextZone")
+ax1.plot(df_graphic["century"], y_graphic_smooth, color="pink", linewidth=1, label="GraphicZone")
+ax1.plot(df_total["century"], y_total_smooth, color="brown", linewidth=1, label="TotalZones")
 ax1.tick_params(axis="y", labelcolor="black")
 ax1.grid(True, linestyle="--", alpha=0.5)
 
 # Right y-axis: tokens
 ax2 = ax1.twinx()
-ax2.set_ylabel("Tokens/page (avg)")
-ax2.plot(df_tokens["century"], y_tokens_smooth, color="black", linewidth=2, label="Tokens")
+ax2.set_ylabel("Tokens/page (avg)", fontsize=5)
+ax2.tick_params(axis="y", labelsize=5)
+ax2.plot(df_tokens["century"], y_tokens_smooth, color="black", linewidth=1, label="Tokens")
 ax2.tick_params(axis="y", labelcolor="black")
 
 # Combined legend
 lines1, labels1 = ax1.get_legend_handles_labels()
 lines2, labels2 = ax2.get_legend_handles_labels()
-ax1.legend(lines1 + lines2, labels1 + labels2, loc="upper left", fontsize=7)
+ax1.legend(lines1 + lines2, labels1 + labels2, loc="upper left", fontsize=4)
 
-plt.title("Zones and Tokens per Century (Polyn. reg.)", fontsize=9)
+plt.title(f"Zones and Tokens per Century (LANG_FILTER={LANG_FILTER})", fontsize=6)
 fig.tight_layout()
-plt.savefig("graph.pdf", bbox_inches="tight")  # ✅ vectoriel pour LaTeX
+plt.savefig("graph.pdf", bbox_inches="tight")
 print("✅ Figure saved: graph.pdf")
 plt.show()
