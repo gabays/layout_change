@@ -13,7 +13,7 @@ pip install -r requirements
 
 ⚠️ Remember to adjust the path and other variables at the top of each script.
 
-To compute the quantity of several zones over centuries (slow, I need to implement multiprocessing)
+To compute the quantity of several zones over centuries
 
 ```bash
 python zones_count.py
