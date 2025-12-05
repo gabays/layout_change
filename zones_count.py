@@ -5,13 +5,14 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from multiprocessing import Pool, cpu_count
 
 # ---------------------------
 # BASE CONFIGURATION
 # ---------------------------
 BASE_DIR = "batch"  # Root folder containing subfolders with JSON files
-CSV_OUTPUT = "data.csv"
-FIGURE_OUTPUT = "graph.png"
+CSV_OUTPUT = "data_zones_count.csv"
+FIGURE_OUTPUT = "graph_zones_count"
 POLY_DEGREE = 6  # Degree of polynomial for smoothing
 SAVE_CSV = False  # Set to False to skip saving CSV
 LANG_FILTER = None #"fre" "lat"  # 🔹 Language filter: set to None to include all documents
@@ -150,85 +151,110 @@ def polynomial_smooth(x, y, degree=POLY_DEGREE):
     poly = np.poly1d(np.polyfit(x, y, deg=degree))
     return poly(x)
 
+def wrapper(args):
+    """Must be top-level — never inside main()"""
+    filepath, lang = args
+    return process_json_file(filepath, lang_filter=lang)
+
 # ---------------------------
 # MAIN SCRIPT
 # ---------------------------
 
-# Step 1: List all JSON files
-all_json_files = list_all_json_files(BASE_DIR)
-print(f"Total JSON files found: {len(all_json_files)}")
+def main():
+    # Step 1: List all JSON files
+    all_json_files = list_all_json_files(BASE_DIR)
+    print(f"Total JSON files found: {len(all_json_files)}")
+    print("Using", cpu_count(), "cores...")
 
-# Step 2: Process JSON files with progress bar
-data_main = []
-data_margin = []
-data_graphic = []
-data_total = []
-data_tokens = []
+    # Step 2: Process JSON files with progress bar
+    results = []
+    with Pool(cpu_count()) as pool:
+        for result in tqdm(
+            pool.imap_unordered(wrapper, [(fp, LANG_FILTER) for fp in all_json_files], chunksize=50),
+            total=len(all_json_files),
+            desc="Processing JSON files in parallel"
+        ):
+            results.append(result)
 
-for filepath in tqdm(all_json_files, desc="Processing JSON files"):
-    result = process_json_file(filepath, lang_filter=LANG_FILTER)
-    if result:
-        century, avg_main, avg_margin, avg_graphic, avg_total, avg_tokens = result
-        if avg_main is not None: data_main.append((century, avg_main))
-        if avg_margin is not None: data_margin.append((century, avg_margin))
-        if avg_graphic is not None: data_graphic.append((century, avg_graphic))
-        if avg_total is not None: data_total.append((century, avg_total))
-        if avg_tokens is not None: data_tokens.append((century, avg_tokens))
+    data_main = []
+    data_margin = []
+    data_graphic = []
+    data_total = []
+    data_tokens = []
 
-# Step 3: Create DataFrames and sort by century
-df_main = pd.DataFrame(data_main, columns=["century", "avg_mainzone"]).sort_values("century").reset_index(drop=True)
-df_margin = pd.DataFrame(data_margin, columns=["century", "avg_margin"]).sort_values("century").reset_index(drop=True)
-df_graphic = pd.DataFrame(data_graphic, columns=["century", "avg_graphic"]).sort_values("century").reset_index(drop=True)
-df_total = pd.DataFrame(data_total, columns=["century", "avg_total"]).sort_values("century").reset_index(drop=True)
-df_tokens = pd.DataFrame(data_tokens, columns=["century", "avg_tokens"]).sort_values("century").reset_index(drop=True)
+    for result in results:
+        if result:
+            century, avg_main, avg_margin, avg_graphic, avg_total, avg_tokens = result
+            if avg_main is not None: data_main.append((century, avg_main))
+            if avg_margin is not None: data_margin.append((century, avg_margin))
+            if avg_graphic is not None: data_graphic.append((century, avg_graphic))
+            if avg_total is not None: data_total.append((century, avg_total))
+            if avg_tokens is not None: data_tokens.append((century, avg_tokens))
 
-# Step 4: Optionally save CSV
-if SAVE_CSV:
-    df_csv = df_main.merge(df_margin, on="century", how="outer")\
-                    .merge(df_graphic, on="century", how="outer")\
-                    .merge(df_total, on="century", how="outer")\
-                    .merge(df_tokens, on="century", how="outer")
-    df_csv.to_csv(CSV_OUTPUT, index=False, encoding="utf-8")
-    print(f"✅ CSV saved: {CSV_OUTPUT}")
-else:
-    print("ℹ️ CSV saving skipped.")
+    # Step 3: Create DataFrames and sort by century
+    df_main = pd.DataFrame(data_main, columns=["century", "avg_mainzone"]).sort_values("century").reset_index(drop=True)
+    df_margin = pd.DataFrame(data_margin, columns=["century", "avg_margin"]).sort_values("century").reset_index(drop=True)
+    df_graphic = pd.DataFrame(data_graphic, columns=["century", "avg_graphic"]).sort_values("century").reset_index(drop=True)
+    df_total = pd.DataFrame(data_total, columns=["century", "avg_total"]).sort_values("century").reset_index(drop=True)
+    df_tokens = pd.DataFrame(data_tokens, columns=["century", "avg_tokens"]).sort_values("century").reset_index(drop=True)
 
-# Step 5: Smooth curves using polynomial regression
-y_main_smooth = polynomial_smooth(df_main["century"].values, df_main["avg_mainzone"].values)
-y_margin_smooth = polynomial_smooth(df_margin["century"].values, df_margin["avg_margin"].values)
-y_graphic_smooth = polynomial_smooth(df_graphic["century"].values, df_graphic["avg_graphic"].values)
-y_total_smooth = polynomial_smooth(df_total["century"].values, df_total["avg_total"].values)
-y_tokens_smooth = polynomial_smooth(df_tokens["century"].values, df_tokens["avg_tokens"].values)
+    # Step 4: Optionally save CSV
+    if SAVE_CSV:
+        df_csv = df_main.merge(df_margin, on="century", how="outer")\
+                        .merge(df_graphic, on="century", how="outer")\
+                        .merge(df_total, on="century", how="outer")\
+                        .merge(df_tokens, on="century", how="outer")
+        df_csv.to_csv(CSV_OUTPUT, index=False, encoding="utf-8")
+        print(f"✅ CSV saved: {CSV_OUTPUT}")
+    else:
+        print("ℹ️ CSV saving skipped.")
 
-# Step 6: Plot with dual y-axes
-fig, ax1 = plt.subplots(figsize=(3.25, 2.5))  # small format to fit two-columns layout
+    # Step 5: Smooth curves using polynomial regression
+    y_main_smooth = polynomial_smooth(df_main["century"].values, df_main["avg_mainzone"].values)
+    y_margin_smooth = polynomial_smooth(df_margin["century"].values, df_margin["avg_margin"].values)
+    y_graphic_smooth = polynomial_smooth(df_graphic["century"].values, df_graphic["avg_graphic"].values)
+    y_total_smooth = polynomial_smooth(df_total["century"].values, df_total["avg_total"].values)
+    y_tokens_smooth = polynomial_smooth(df_tokens["century"].values, df_tokens["avg_tokens"].values)
 
-# Left y-axis: zones
-ax1.set_xlabel("Century", fontsize=5)
-ax1.set_ylabel("Zones/page (avg)", fontsize=5)
-ax1.tick_params(axis="x", labelsize=5)
-ax1.tick_params(axis="y", labelsize=5)
-ax1.plot(df_main["century"], y_main_smooth, color="red", linewidth=1, label="MainZone")
-ax1.plot(df_margin["century"], y_margin_smooth, color="orange", linewidth=1, label="MarginTextZone")
-ax1.plot(df_graphic["century"], y_graphic_smooth, color="pink", linewidth=1, label="GraphicZone")
-ax1.plot(df_total["century"], y_total_smooth, color="brown", linewidth=1, label="TotalZones")
-ax1.tick_params(axis="y", labelcolor="black")
-ax1.grid(True, linestyle="--", alpha=0.5)
+    # Step 6: Plot with dual y-axes
+    fig, ax1 = plt.subplots(figsize=(3.25, 2.5))  # small format to fit two-columns layout
 
-# Right y-axis: tokens
-ax2 = ax1.twinx()
-ax2.set_ylabel("Tokens/page (avg)", fontsize=5)
-ax2.tick_params(axis="y", labelsize=5)
-ax2.plot(df_tokens["century"], y_tokens_smooth, color="black", linewidth=1, label="Tokens")
-ax2.tick_params(axis="y", labelcolor="black")
+    # Left y-axis: zones
+    ax1.set_xlabel("Century", fontsize=5)
+    ax1.set_ylabel("Zones/page (avg)", fontsize=5)
+    ax1.tick_params(axis="x", labelsize=5)
+    ax1.tick_params(axis="y", labelsize=5)
+    ax1.plot(df_main["century"], y_main_smooth, color="red", linewidth=1, label="MainZone")
+    ax1.plot(df_margin["century"], y_margin_smooth, color="orange", linewidth=1, label="MarginTextZone")
+    ax1.plot(df_graphic["century"], y_graphic_smooth, color="pink", linewidth=1, label="GraphicZone")
+    ax1.plot(df_total["century"], y_total_smooth, color="brown", linewidth=1, label="TotalZones")
+    ax1.tick_params(axis="y", labelcolor="black")
+    ax1.grid(True, linestyle="--", alpha=0.5)
 
-# Combined legend
-lines1, labels1 = ax1.get_legend_handles_labels()
-lines2, labels2 = ax2.get_legend_handles_labels()
-ax1.legend(lines1 + lines2, labels1 + labels2, loc="upper left", fontsize=4)
+    # Right y-axis: tokens
+    ax2 = ax1.twinx()
+    ax2.set_ylabel("Tokens/page (avg)", fontsize=5)
+    ax2.tick_params(axis="y", labelsize=5)
+    ax2.plot(df_tokens["century"], y_tokens_smooth, color="black", linewidth=1, label="Tokens")
+    ax2.tick_params(axis="y", labelcolor="black")
 
-plt.title(f"Zones and Tokens per Century (LANG_FILTER={LANG_FILTER})", fontsize=6)
-fig.tight_layout()
-plt.savefig("graph.pdf", bbox_inches="tight")
-print("✅ Figure saved: graph.pdf")
-plt.show()
+    # Combined legend
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines1 + lines2, labels1 + labels2, loc="upper left", fontsize=4)
+
+    #title
+    title = "Zones and Tokens per Century"
+    if LANG_FILTER is not None:
+        title += f" (LANG_FILTER={LANG_FILTER})"
+    plt.title(title, fontsize=6)
+    fig.tight_layout()
+    plt.savefig(f"{FIGURE_OUTPUT}.pdf", bbox_inches="tight")
+    print(f"✅ Figure saved: {FIGURE_OUTPUT}.pdf")
+    plt.show()
+
+
+if __name__ == "__main__":
+    import multiprocessing
+    multiprocessing.freeze_support()
+    main()
