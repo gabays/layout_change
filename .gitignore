@@ -2,5 +2,4 @@
 batch/
 *.pdf
 *.png
-pages_type_overlay/*png
-
+pages_type_overlay/*.png
