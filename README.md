@@ -20,13 +20,6 @@ python zones_count.py
 ```
 output: `graph_zones_count.pdf`
 
-To generate synthetic representations of the pages, one per century
-
-```bash
-python create_types.py
-```
-output: `pages_type_overlay/`
-
 To compute the relative percentage between two concurrent forms
 
 ```bash
@@ -48,6 +41,26 @@ python lexical_richeness.py
 ```
 output: `graph_count_abbr.png`
 
+To generate synthetic representations of the pages, one per century (experimental)
+
+```bash
+python create_types.py
+```
+output: `pages_type_overlay/`
+
 ## Cite
 
-Simon Gabay, UniGE
+```bibtex
+@unpublished{clerice:hal-05299220,
+  TITLE = {{CoMMA, a Large-scale Corpus of Multilingual Medieval Archives}},
+  AUTHOR = {Cl{\'e}rice, Thibault and Gabay, Simon and Vlachou-Efstathiou, Malamatenia and Pinche, Ariane and Sagot, Beno{\^i}t},
+  URL = {https://inria.hal.science/hal-05299220},
+  NOTE = {working paper or preprint},
+  YEAR = {2025},
+  MONTH = Oct,
+  KEYWORDS = {Automatic Text Recognition ; Medieval manuscripts ; Latin ; French ; Digital humanities ; Corpus},
+  PDF = {https://inria.hal.science/hal-05299220v1/file/Latin_and_Old_French_Manuscripts-8.pdf},
+  HAL_ID = {hal-05299220},
+  HAL_VERSION = {v1},
+}
+```
