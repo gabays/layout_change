@@ -14,7 +14,7 @@ import unicodedata
 # CONFIGURATION
 # ---------------------------
 BASE_DIR = "batch"  # folder containing JSON files
-FIGURE_OUTPUT = "graph_abbr.png"  # output figure file
+FIGURE_OUTPUT = "graph_count_abbr.png"  # output figure file
 POLY_DEGREE = 3  # degree of polynomial smoothing
 LANG_FILTER = "lat"  # language filter
 #LANG_FILTER = "fre"  # Only process files with doc["langue"] == LANG_FILTER
@@ -219,9 +219,9 @@ if __name__ == "__main__":
 
     # Step 8: Plot
     plt.figure(figsize=(3.25, 3.3))
-    for cat, y_smooth in y_series_smooth_subset.items():
-        label = "% Abbreviated" if cat == "special" else "% Non-abbreviated"
-        plt.plot(x[indices], y_smooth, linewidth=2, linestyle="--", label=label)
+    cat = "special"
+    y_smooth = y_series_smooth_subset[cat]
+    plt.plot(x[indices], y_smooth, linewidth=2, linestyle="--", label="% Abbreviated")
 
     plt.xlabel("Century")
     plt.title("Percentage of abbreviated / non-abbreviated words per century")
